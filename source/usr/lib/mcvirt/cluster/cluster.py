@@ -440,65 +440,70 @@ class Cluster(PyroObject):
         if remote_node_drbd.is_enabled():
             raise DrbdNotInstalledException('Drbd is already enabled on the remote node')
 
-    def remove_node(self, remote_host):
-        # TODO: Needs updating to support RPC
+    
+    def remove_node(self, node):
         """Remove a node from the MCVirt cluster"""
         # Ensure the user has privileges to manage the cluster
         self._get_registered_object('auth').assert_permission(PERMISSIONS.MANAGE_CLUSTER)
 
         # Ensure node exists
-        self.ensure_node_exists(remote_host)
+        self.ensure_node_exists(node)
+
+        # Function to return a function to delete a given vm
+        def remove_vm(vm_name):
+            def remove_vms(remote_connection):  
+                remote_vm_factory = remote_connection.get_connection('virtual_machine_factory')
+                remote_vm = remote_vm_factory.getVirtualMachineByName(vm_name)
+                remote_connection.annotate_object(remote_vm)
+                remote_vm.delete(remove_data=True)
+            return remove_vms
 
         # Check for any VMs that the target node is available to and where the node is not
-        # the only not that the VM is available to
+        # the only node that the VM is available to
         vm_factory = self._get_registered_object('virtual_machine_factory')
         all_vm_objects = vm_factory.getAllVirtualMachines()
         for vm_object in all_vm_objects:
             if ((vm_object.getStorageType() == 'Drbd' and
-                 remote_host in vm_object.getAvailableNodes())):
+                 node in vm_object.getAvailableNodes())):
                 raise RemoteObjectConflict('The remote node is available to VM: %s' %
                                            vm_object.get_name())
 
         all_nodes = self.get_nodes(return_all=True)
-        all_nodes.remove(remote_host)
+        all_nodes.remove(node)
+
 
         # Remove any VMs that are only present on the remote node
-        cluster = self._get_registered_object('cluster')
         for vm_object in all_vm_objects:
             if ((vm_object.getStorageType() == 'Local' and
-                 vm_object.getAvailableNodes() == [remote_host])):
-                def remove_vms(remote_connection):
-                    remote_vm_factory = remote_connection.get_connection('virtual_machine_factory')
-                    remote_vm = remote_vm_factory.getVirtualMachineByName(vm_object.get_name())
-                    remote_connection.annotate_object(remote_vm)
-                    remote_vm.delete(remove_data=True)
-                cluster.run_remote_command(remove_vms)
+                 vm_object.getAvailableNodes() == [node])):
                 vm_object.delete(remove_data=True, local_only=True)
+                self.run_remote_command(callback_method=remove_vm(vm_object.get_name()))
 
-        if remote_host not in self.getFailedNodes():
-            remote = self.get_remote_node(remote_host)
+        remote_node = self.get_remote_node(node)
 
+        # Remove the SSL certificates from the other nodes
+        self.remove_node_ssl_certificates(remote_node)
+
+        remote_cluster = remote_node.get_connection('cluster')
+        if remote_node:
             # Remove any VMs from the remote node that the node is not able to run
             vm_factory = self._get_registered_object('virtual_machine_factory')
             all_vm_objects = vm_factory.getAllVirtualMachines()
             for vm_object in all_vm_objects:
-                if (vm_object.getAvailableNodes() != [remote_host]):
-                    remote.run_remote_command('virtual_machine-delete',
-                                              {'vm_name': vm_object.get_name(),
-                                               'remove_data': True})
+                if vm_object.getAvailableNodes() != [node]:
+                    self.run_remote_command(remove_vm(vm_object.get_name()))
+                    vm_object.delete(remove_data=True, local_only=True)
 
             # Remove all nodes in the cluster from the remote node
             all_nodes.append(get_hostname())
-            for node in all_nodes:
-                remote.run_remote_command('cluster-cluster-remove_node_configuration',
-                                          {'node': node})
+            remote_cluster.run_remote_command(callback_method=self.remove_node_configuration, node=all_nodes)
 
         # Remove remote node from local configuration
-        self.remove_node_configuration(remote_host)
+        self.remove_node_configuration(remote_node)
 
         # Remove the node from the rest of the nodes in the cluster
-        self.run_remote_command('cluster-cluster-remove_node_configuration',
-                                {'node': remote_host})
+        remote_cluster.run_remote_command(callback_method=self.remove_node_configuration, node=node)
+
 
     def remove_node_ssl_certificates(self, remote_node):
         """Remove the SSL certificates relating to a node
@@ -577,7 +582,7 @@ class Cluster(PyroObject):
         nodes = cluster_config['nodes'].keys()
         if self._cluster_disabled and not return_all:
             for node in nodes:
-                if node in self.getFailedNodes():
+                if not node:
                     nodes.remove(node)
         return nodes
 
