@@ -62,10 +62,11 @@ class TestBase(unittest.TestCase):
 
         # Obtain the session ID from the RPC connection and re-use this,
         # so that the parser does not need to authenticate with a password
-        self.parser.parse_arguments('list --username %s --password %s' % (self.RPC_USERNAME,
-                                                                          self.RPC_PASSWORD))
-        Parser.USERNAME = self.RPC_USERNAME
-        Parser.SESSION_ID = self.rpc.session_id
+        # self.parser.parse_arguments('list --username %s --password %s' % (self.RPC_USERNAME,
+        #                                                                   self.RPC_PASSWORD))
+
+        self.parser.USERNAME = self.RPC_USERNAME
+        self.parser.SESSION_ID = self.rpc.session_id
 
         # Setup variable for test VM
         self.test_vms = \
@@ -94,7 +95,7 @@ class TestBase(unittest.TestCase):
 
         self.vm_factory = self.rpc.get_connection('virtual_machine_factory')
 
-        self.test_network_name = 'test_network'
+        self.test_network_name = 'testnetwork'
         self.test_physical_interface = 'vmbr0'
         self.network_factory = self.rpc.get_connection('network_factory')
 

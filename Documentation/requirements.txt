@@ -1,0 +1,6 @@
+enum34
+texttable
+lockfile
+paramiko
+Cheetah
+mock

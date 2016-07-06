@@ -37,6 +37,12 @@ class MethodLock(object):
         return cls._lock
 
 
+def deadlock_escape():
+    """Force clear a lock to escape deadlock"""
+    lock = MethodLock.get_lock()
+    lock.release()
+
+
 def locking_method(object_type=None, instance_method=True):
     """Provide a decorator method for locking the node whilst performing the method"""
     def wrapper(callback):
@@ -59,13 +65,18 @@ def locking_method(object_type=None, instance_method=True):
                                   Pyro4.current_context.has_lock))
 
             logger = Logger()
-            if 'username' in dir(Pyro4.current_context):
+            if 'proxy_user' in dir(Pyro4.current_context) and Pyro4.current_context.proxy_user:
+                username = Pyro4.current_context.proxy_user
+            elif 'username' in dir(Pyro4.current_context):
                 username = Pyro4.current_context.username
             else:
                 username = ''
-
-            log = logger.create_log(callback, user=username,
-                                    object_name=object_name, object_type=object_type)
+            if requires_lock:
+                log = logger.create_log(callback, user=username,
+                                        object_name=object_name,
+                                        object_type=object_type)
+            else:
+                log = None
 
             if requires_lock:
                 lock.acquire()
@@ -73,14 +84,16 @@ def locking_method(object_type=None, instance_method=True):
                 # be obtained in short period (~5 seconds)
                 Pyro4.current_context.has_lock = True
 
-            log.start()
+            if log:
+                log.start()
             response = None
             try:
                 response = callback(*args, **kwargs)
             except MCVirtException as e:
                 Syslogger.logger().error('An internal MCVirt exception occurred in lock')
                 Syslogger.logger().error("".join(Pyro4.util.getPyroTraceback()))
-                log.finish_error(e)
+                if log:
+                    log.finish_error(e)
                 if requires_lock:
                     lock.release()
                     Pyro4.current_context.has_lock = False
@@ -88,13 +101,14 @@ def locking_method(object_type=None, instance_method=True):
             except Exception as e:
                 Syslogger.logger().error('Unknown exception occurred in lock')
                 Syslogger.logger().error("".join(Pyro4.util.getPyroTraceback()))
-                log.finish_error_unknown(e)
+                if log:
+                    log.finish_error_unknown(e)
                 if requires_lock:
                     lock.release()
                     Pyro4.current_context.has_lock = False
                 raise
-
-            log.finish_success()
+            if log:
+                log.finish_success()
             if requires_lock:
                 lock.release()
                 Pyro4.current_context.has_lock = False

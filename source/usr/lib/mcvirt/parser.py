@@ -39,11 +39,10 @@ class ThrowingArgumentParser(argparse.ArgumentParser):
 class Parser(object):
     """Provides an argument parser for MCVirt."""
 
-    SESSION_ID = None
-    USERNAME = None
-
     def __init__(self, verbose=True):
         """Configure the argument parser object."""
+        self.USERNAME = None
+        self.SESSION_ID = None
         self.verbose = verbose
         self.parent_parser = ThrowingArgumentParser(add_help=False)
 
@@ -594,9 +593,24 @@ class Parser(object):
         args = self.parser.parse_args(script_args)
         action = args.action
 
+        ignore_cluster = False
+        if args.ignore_failed_nodes:
+            # If the user has specified to ignore the cluster,
+            # print a warning and confirm the user's answer
+            if not args.accept_failed_nodes_warning:
+                self.print_status(('WARNING: Running MCVirt with --ignore-failed-nodes'
+                                   ' can leave the cluster in an inconsistent state!'))
+                continue_answer = System.getUserInput('Would you like to continue? (Y/n): ')
+
+                if continue_answer.strip() is not 'Y':
+                    self.print_status('Cancelled...')
+                    return
+            ignore_cluster = True
+
         # Obtain connection to Pyro server
-        if Parser.SESSION_ID and Parser.USERNAME:
-            rpc = Connection(username=Parser.USERNAME, session_id=Parser.SESSION_ID)
+        if self.SESSION_ID and self.USERNAME:
+            rpc = Connection(username=self.USERNAME, session_id=self.SESSION_ID,
+                             ignore_cluster=ignore_cluster)
         else:
             # Check if user/password have been passed. Else, ask for them.
             username = args.username if args.username else System.getUserInput(
@@ -608,22 +622,9 @@ class Parser(object):
                 password = System.getUserInput(
                     'Password: ', password=True
                 ).rstrip()
-            rpc = Connection(username=username, password=password)
-            Parser.SESSION_ID = rpc.session_id
-            Parser.USERNAME = username
-
-        if args.ignore_failed_nodes:
-            # If the user has specified to ignore the cluster,
-            # print a warning and confirm the user's answer
-            if (not args.accept_failed_nodes_warning):
-                self.print_status(('WARNING: Running MCVirt with --ignore-failed-nodes'
-                                   ' can leave the cluster in an inconsistent state!'))
-                continue_answer = System.getUserInput('Would you like to continue? (Y/n): ')
-
-                if (continue_answer.strip() is not 'Y'):
-                    self.print_status('Cancelled...')
-                    return
-            rpc.ignore_cluster()
+            rpc = Connection(username=username, password=password, ignore_cluster=ignore_cluster)
+            self.SESSION_ID = rpc.session_id
+            self.USERNAME = username
 
         if args.ignore_drbd:
             rpc.ignore_drbd()
@@ -879,14 +880,14 @@ class Parser(object):
             cluster_object = rpc.get_connection('cluster')
             if args.cluster_action == 'get-connect-string':
                 self.print_status(cluster_object.get_connection_string())
-            if (args.cluster_action == 'add-node'):
+            if args.cluster_action == 'add-node':
                 if args.connect_string:
                     connect_string = args.connect_string
                 else:
                     connect_string = System.getUserInput('Enter Connect String: ')
                 cluster_object.add_node(connect_string)
                 self.print_status('Successfully added node')
-            if (args.cluster_action == 'remove-node'):
+            if args.cluster_action == 'remove-node':
                 cluster_object.remove_node(args.node)
                 self.print_status('Successfully removed node %s' % args.node)
 
@@ -1016,7 +1017,7 @@ class Parser(object):
         elif action == 'user':
             if args.user_action == 'change-password':
                 user_factory = rpc.get_connection('user_factory')
-                target_user = args.target_user or Parser.USERNAME
+                target_user = args.target_user or self.USERNAME
                 user = user_factory.get_user_by_username(target_user)
                 rpc.annotate_object(user)
                 new_password = args.new_password or System.getNewPassword()
