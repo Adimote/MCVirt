@@ -87,6 +87,11 @@ class Parser(object):
                                                        parents=[self.parent_parser])
         self.reset_parser.add_argument('vm_name', metavar='VM Name', type=str, help='Name of VM')
 
+
+        # Add arguments for fixing deadlock on a vm
+        self.deadlock_parser = self.subparsers.add_parser('clear_deadlock', help='Resolve the deadlock of a call to the daemon.',
+                                                       parents=[self.parent_parser])
+
         # Add arguments for ISO functions
         self.iso_parser = self.subparsers.add_parser('iso', help='ISO managment',
                                                      parents=[self.parent_parser])
@@ -657,6 +662,14 @@ class Parser(object):
             rpc.annotate_object(vm_object)
             vm_object.reset()
             self.print_status('Successfully reset VM')
+
+        elif action == 'clear_deadlock':
+            node = rpc.get_connection('node')
+            success = node.deadlock_escape()
+            if success:
+                self.print_status('Successfully cleared deadlock')
+            else:
+                self.print_status('Thread already unlocked')
 
         elif action == 'create':
             storage_type = args.storage_type or None

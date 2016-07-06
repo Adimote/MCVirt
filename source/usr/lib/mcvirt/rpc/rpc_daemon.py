@@ -41,6 +41,7 @@ from mcvirt.libvirt_connector import LibvirtConnector
 from mcvirt.utils import get_hostname
 from mcvirt.rpc.constants import Annotations
 from mcvirt.rpc.daemon_lock import DaemonLock
+from mcvirt.rpc.lock  import MethodLock
 
 
 class BaseRpcDaemon(Pyro4.Daemon):
@@ -316,6 +317,10 @@ class RpcNSMixinDaemon(object):
         libvirt_connector = LibvirtConnector()
         self.register(libvirt_connector, objectId='libvirt_connector', force=True)
 
+        # Create MethodLock object and register with daemon
+        method_lock = MethodLock()
+        self.register(method_lock, objectId='method_lock', force=True)
+
         # Create an MCVirt session
         RpcNSMixinDaemon.DAEMON.registered_factories['mcvirt_session'] = Session()
 
@@ -329,3 +334,4 @@ class RpcNSMixinDaemon(object):
                 print e
                 # Wait for 1 second for name server to come up
                 time.sleep(1)
+
