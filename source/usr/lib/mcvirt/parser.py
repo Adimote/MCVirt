@@ -87,7 +87,6 @@ class Parser(object):
                                                        parents=[self.parent_parser])
         self.reset_parser.add_argument('vm_name', metavar='VM Name', type=str, help='Name of VM')
 
-
         # Add arguments for fixing deadlock on a vm
         self.method_lock_parser = self.subparsers.add_parser(
             'clear-method-lock',

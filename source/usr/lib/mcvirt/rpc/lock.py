@@ -36,6 +36,7 @@ class MethodLock(object):
             cls._lock = Lock()
         return cls._lock
 
+
 def locking_method(object_type=None, instance_method=True):
     """Provide a decorator method for locking the node whilst performing the method"""
     def wrapper(callback):

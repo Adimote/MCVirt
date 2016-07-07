@@ -41,7 +41,6 @@ from mcvirt.libvirt_connector import LibvirtConnector
 from mcvirt.utils import get_hostname
 from mcvirt.rpc.constants import Annotations
 from mcvirt.rpc.daemon_lock import DaemonLock
-from mcvirt.rpc.lock  import MethodLock
 
 
 class BaseRpcDaemon(Pyro4.Daemon):

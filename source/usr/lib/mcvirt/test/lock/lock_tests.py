@@ -40,6 +40,7 @@ class LockTests(TestBase):
 
         thread_is_running_event = threading.Event()
         thread_should_stop_event = threading.Event()
+
         @locking_method()
         def hold_lock_forever(self):
             while not thread_should_stop_event.is_set():
@@ -88,6 +89,7 @@ class LockTests(TestBase):
 
             thread_is_running_event = threading.Event()
             thread_should_stop_event = threading.Event()
+
             @locking_method()
             def hold_lock_forever(self):
                 while not thread_should_stop_event.is_set():
@@ -106,7 +108,6 @@ class LockTests(TestBase):
             self.assertTrue(node.clear_method_lock())
             self.assertFalse(node.clear_method_lock())
 
-        
             # Clean up
             thread_should_stop_event.set()
             locking_thread.join()
