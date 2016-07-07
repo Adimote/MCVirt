@@ -89,9 +89,9 @@ class Parser(object):
 
 
         # Add arguments for fixing deadlock on a vm
-        self.deadlock_parser = self.subparsers.add_parser(
-            'clear-deadlock',
-            help='Resolve the deadlock of a call to the daemon.',
+        self.method_lock_parser = self.subparsers.add_parser(
+            'clear-method-lock',
+            help='Resolve the lock of a call to a method on the MCVirt daemon.',
             parents=[self.parent_parser]
         )
 
@@ -666,12 +666,12 @@ class Parser(object):
             vm_object.reset()
             self.print_status('Successfully reset VM')
 
-        elif action == 'clear-deadlock':
+        elif action == 'clear-method-lock':
             node = rpc.get_connection('node')
-            if node.deadlock_escape():
-                self.print_status('Successfully cleared deadlock')
+            if node.clear_method_lock():
+                self.print_status('Successfully cleared method lock')
             else:
-                self.print_status('Thread already unlocked')
+                self.print_status('method lock already cleared')
 
         elif action == 'create':
             storage_type = args.storage_type or None

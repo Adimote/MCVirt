@@ -81,8 +81,8 @@ class Node(PyroObject):
         return VERSION
 
     @Pyro4.expose()
-    def deadlock_escape(self):
-        """Force clear a lock to escape deadlock"""
+    def clear_method_lock(self):
+        """Force clear a method lock to escape deadlock"""
         self._get_registered_object('auth').assert_permission(PERMISSIONS.SUPERUSER)
         lock = MethodLock.get_lock()
         if lock.locked():

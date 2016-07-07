@@ -31,11 +31,11 @@ class LockTests(TestBase):
     def suite():
         """Return a test suite"""
         suite = unittest.TestSuite()
-        suite.addTest(LockTests('test_deadlock_rpc'))
-        suite.addTest(LockTests('test_deadlock_escape_return'))
+        suite.addTest(LockTests('test_method_lock_rpc'))
+        suite.addTest(LockTests('test_method_lock_escape_return'))
         return suite
 
-    def test_deadlock_rpc(self):
+    def test_method_lock_rpc(self):
         """Test whether locks can be cleared over the RPC"""
 
         thread_is_running_event = threading.Event()
@@ -71,7 +71,7 @@ class LockTests(TestBase):
         self.assertTrue(testing_thread.is_alive())
 
         # Fix the problem by clearing the lock
-        self.parser.parse_arguments("clear_deadlock")
+        self.parser.parse_arguments("clear-method-lock")
 
         # This should succeed:
         testing_thread.join(2)
@@ -83,8 +83,8 @@ class LockTests(TestBase):
         thread_should_stop_event.set()
         locking_thread.join()
 
-    def test_deadlock_escape_return(self):
-            """Test whether locks can be cleared and deadlock_escape returns accurateley"""
+    def test_method_lock_escape_return(self):
+            """Test whether locks can be cleared and clear_method_lock returns accurateley"""
 
             thread_is_running_event = threading.Event()
             thread_should_stop_event = threading.Event()
@@ -94,7 +94,7 @@ class LockTests(TestBase):
                     thread_is_running_event.set()
 
             node = self.rpc.get_connection('node')
-            self.assertFalse(node.deadlock_escape())
+            self.assertFalse(node.clear_method_lock())
 
             # Try to take a lock which has already been taken
             locking_thread = threading.Thread(target=hold_lock_forever, args=(self,))
@@ -103,8 +103,8 @@ class LockTests(TestBase):
             # wait for the locking thread to take its lock
             thread_is_running_event.wait()
 
-            self.assertTrue(node.deadlock_escape())
-            self.assertFalse(node.deadlock_escape())
+            self.assertTrue(node.clear_method_lock())
+            self.assertFalse(node.clear_method_lock())
 
         
             # Clean up
