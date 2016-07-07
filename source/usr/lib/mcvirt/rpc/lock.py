@@ -18,6 +18,7 @@
 
 import Pyro4
 from threading import Lock
+
 from mcvirt.exceptions import MCVirtException
 from mcvirt.logger import Logger, getLogNames
 from mcvirt.syslogger import Syslogger

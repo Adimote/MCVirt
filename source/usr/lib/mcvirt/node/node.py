@@ -89,5 +89,4 @@ class Node(PyroObject):
             lock.release()
             Pyro4.current_context.has_lock = False
             return True
-        else:
-            return False
+        return False

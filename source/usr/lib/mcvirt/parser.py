@@ -89,8 +89,11 @@ class Parser(object):
 
 
         # Add arguments for fixing deadlock on a vm
-        self.deadlock_parser = self.subparsers.add_parser('clear_deadlock', help='Resolve the deadlock of a call to the daemon.',
-                                                       parents=[self.parent_parser])
+        self.deadlock_parser = self.subparsers.add_parser(
+            'clear-deadlock',
+            help='Resolve the deadlock of a call to the daemon.',
+            parents=[self.parent_parser]
+        )
 
         # Add arguments for ISO functions
         self.iso_parser = self.subparsers.add_parser('iso', help='ISO managment',
@@ -663,10 +666,9 @@ class Parser(object):
             vm_object.reset()
             self.print_status('Successfully reset VM')
 
-        elif action == 'clear_deadlock':
+        elif action == 'clear-deadlock':
             node = rpc.get_connection('node')
-            success = node.deadlock_escape()
-            if success:
+            if node.deadlock_escape():
                 self.print_status('Successfully cleared deadlock')
             else:
                 self.print_status('Thread already unlocked')
